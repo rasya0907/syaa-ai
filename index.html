@@ -663,6 +663,14 @@ code.code-text{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#e2
 .wave-bar.active:nth-child(7){animation-delay:.1s}
 .wave-bar.active:nth-child(8){animation-delay:.2s}
 .wave-bar.active:nth-child(9){animation-delay:.3s}
+/* ── CALL BUBBLES ── */
+.call-bubble{position:absolute;border-radius:50%;opacity:0;animation:none;pointer-events:none}
+.call-bubble.active{animation:bubble-float linear infinite}
+@keyframes bubble-float{0%{transform:translateY(0) scale(1);opacity:.5}50%{opacity:.3}100%{transform:translateY(-100vh) scale(0.3);opacity:0}}
+@keyframes avatar-pulse{0%,100%{box-shadow:0 0 0 0 rgba(var(--bubble-rgb),.5),0 0 60px rgba(var(--bubble-rgb),.2)}50%{box-shadow:0 0 0 20px rgba(var(--bubble-rgb),0),0 0 80px rgba(var(--bubble-rgb),.4)}}
+@keyframes avatar-speak{0%,100%{transform:scale(1)}25%{transform:scale(1.06)}75%{transform:scale(1.03)}}
+.avatar-speaking{animation:avatar-speak .4s ease-in-out infinite}
+@keyframes bg-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes wave-anim{0%,100%{height:8px}50%{height:40px}}
 @keyframes ring-pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
 .call-ring-active{animation:ring-pulse 1.2s ease-out infinite !important}
@@ -784,37 +792,54 @@ textarea#msg-input::placeholder{color:var(--t-text-s)}
 
 
   <!-- VOICE CALL OVERLAY -->
-  <div id="call-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,#0a0a14 0%,#000005 100%);flex-direction:column;align-items:center;justify-content:center;gap:0">
-    <div style="text-align:center;padding:40px 20px 0">
-      <!-- Avatar lingkaran dengan inisial -->
-      <div id="call-ai-avatar" style="width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,var(--t-primary),var(--t-secondary));margin:0 auto 20px;display:flex;align-items:center;justify-content:center;position:relative">
-        <div id="call-ring" style="position:absolute;inset:-10px;border-radius:50%;border:3px solid var(--t-primary);opacity:0;animation:none"></div>
-        <span id="call-avatar-initial" style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:2.4rem;color:#fff;letter-spacing:-.02em">AI</span>
+  <div id="call-overlay" style="display:none;position:fixed;inset:0;z-index:9999;flex-direction:column;align-items:center;justify-content:space-between;padding:60px 0 48px;overflow:hidden">
+    <!-- Animated gradient background -->
+    <div id="call-bg" style="position:absolute;inset:0;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);background-size:400% 400%;animation:bg-shift 8s ease infinite;z-index:0"></div>
+    <!-- Floating bubbles container -->
+    <div id="call-bubbles" style="position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden"></div>
+
+    <!-- TOP: name + timer -->
+    <div style="position:relative;z-index:2;text-align:center">
+      <div id="call-ai-name" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.5rem;color:#fff;letter-spacing:-.01em">Syaaa</div>
+      <div id="call-voice-label" style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:2px">Voice: —</div>
+      <div id="call-timer" style="font-size:.9rem;font-weight:600;color:rgba(255,255,255,.6);margin-top:6px;letter-spacing:.1em">00:00</div>
+    </div>
+
+    <!-- CENTER: big avatar bubble -->
+    <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:28px">
+      <!-- Avatar -->
+      <div id="call-ai-avatar" style="width:150px;height:150px;border-radius:50%;background:linear-gradient(135deg,var(--t-primary),var(--t-secondary));display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 0 0 0 rgba(99,102,241,.5);transition:box-shadow .3s">
+        <!-- Outer glow rings -->
+        <div id="call-ring" style="position:absolute;inset:-15px;border-radius:50%;border:2px solid rgba(255,255,255,.15);opacity:0;animation:none"></div>
+        <div id="call-ring2" style="position:absolute;inset:-30px;border-radius:50%;border:1px solid rgba(255,255,255,.08);opacity:0;animation:none"></div>
+        <span id="call-avatar-initial" style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:3rem;color:#fff">AI</span>
       </div>
-      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.4rem;color:var(--t-text);margin-bottom:4px" id="call-ai-name">MRS Nova</div>
-      <div style="font-size:.75rem;color:rgba(255,255,255,.35);margin-bottom:6px" id="call-voice-label">Voice: —</div>
-      <div id="call-status" style="font-size:.85rem;color:var(--t-text-s);margin-bottom:6px">Menghubungkan...</div>
-      <div id="call-timer" style="font-size:1rem;font-weight:600;color:var(--t-primary);letter-spacing:.08em">00:00</div>
+
+      <!-- Status + transcript -->
+      <div style="text-align:center">
+        <div id="call-status" style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px;letter-spacing:.05em;text-transform:uppercase">Menghubungkan...</div>
+        <!-- Wave bars -->
+        <div id="call-wave" style="display:flex;align-items:center;justify-content:center;gap:4px;height:40px;margin-bottom:12px">
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        </div>
+        <div style="max-width:300px;font-size:.85rem;color:rgba(255,255,255,.7);line-height:1.6;min-height:44px;padding:0 20px">
+          <span id="transcript-text">Siap...</span>
+        </div>
+      </div>
     </div>
-    <div id="call-wave" style="display:flex;align-items:center;justify-content:center;gap:5px;height:70px;margin:20px 0">
-      <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
-      <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
-      <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
-    </div>
-    <div style="max-width:340px;width:90%;background:rgba(255,255,255,.05);border-radius:16px;padding:14px 18px;min-height:60px;font-size:.85rem;color:var(--t-text-s);text-align:center;line-height:1.6;border:1px solid var(--t-border);margin-bottom:24px">
-      <span id="transcript-text">Siap mendengarkan...</span>
-    </div>
-    <div style="display:flex;gap:24px;align-items:center">
-      <!-- Mute button — SVG only, no emoji -->
-      <button id="mute-btn" onclick="toggleMute()" style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.1);border:none;cursor:pointer;color:var(--t-text);display:flex;align-items:center;justify-content:center;transition:all .2s" title="Mute">
+
+    <!-- BOTTOM: controls -->
+    <div style="position:relative;z-index:2;display:flex;gap:32px;align-items:center">
+      <button id="mute-btn" onclick="toggleMute()" style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.12);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;transition:all .2s">
         <svg id="mute-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
       </button>
-      <!-- End call button -->
-      <button onclick="endVoiceCall()" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(239,68,68,.5);transition:all .2s">
+      <button onclick="endVoiceCall()" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(239,68,68,.5);transition:all .2s">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" transform="rotate(135 12 12)"/></svg>
       </button>
+      <button onclick="endVoiceCall()" style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.12);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);cursor:pointer;color:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;letter-spacing:.03em">END</button>
     </div>
-    <!-- debug hidden -->
     <div id="call-debug" style="display:none"></div>
   </div>
   <div id="chat-container">
@@ -1894,6 +1919,63 @@ let selectedVoiceId = localStorage.getItem('el_voice') || '21m00Tcm4TlvDq8ikWAM'
 
 // ── AudioContext unlock (wajib untuk iOS/Chrome iPhone) ──
 let audioCtx = null;
+// ── CALL BUBBLES SYSTEM ──
+let bubbleInterval = null;
+
+function startBubbles(speaking) {
+  stopBubbles();
+  const container = document.getElementById('call-bubbles');
+  if (!container) return;
+
+  bubbleInterval = setInterval(() => {
+    const b = document.createElement('div');
+    const size = speaking ? (30 + Math.random() * 60) : (10 + Math.random() * 30);
+    const x = Math.random() * 100;
+    const dur = speaking ? (3 + Math.random() * 4) : (6 + Math.random() * 6);
+    const colors = speaking
+      ? ['rgba(99,102,241,.4)','rgba(139,92,246,.4)','rgba(167,139,250,.5)','rgba(196,181,253,.3)']
+      : ['rgba(255,255,255,.08)','rgba(255,255,255,.05)','rgba(255,255,255,.1)'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    b.style.cssText = `
+      position:absolute;
+      width:${size}px;height:${size}px;
+      left:${x}%;bottom:-${size}px;
+      background:${color};
+      border:1px solid rgba(255,255,255,${speaking?.15:.06});
+      border-radius:50%;
+      animation:bubble-float ${dur}s linear forwards;
+      backdrop-filter:blur(2px);
+    `;
+    container.appendChild(b);
+    setTimeout(() => b.remove(), dur * 1000);
+  }, speaking ? 300 : 800);
+}
+
+function stopBubbles() {
+  if (bubbleInterval) { clearInterval(bubbleInterval); bubbleInterval = null; }
+}
+
+function setAvatarSpeaking(on) {
+  const av = document.getElementById('call-ai-avatar');
+  const r1 = document.getElementById('call-ring');
+  const r2 = document.getElementById('call-ring2');
+  if (!av) return;
+  if (on) {
+    av.classList.add('avatar-speaking');
+    av.style.boxShadow = '0 0 0 4px rgba(139,92,246,.4), 0 0 60px rgba(99,102,241,.5)';
+    if (r1) { r1.style.opacity='1'; r1.style.animation='ring-pulse 1.2s ease-out infinite'; }
+    if (r2) { r2.style.opacity='1'; r2.style.animation='ring-pulse 1.6s ease-out infinite .3s'; }
+    startBubbles(true);
+  } else {
+    av.classList.remove('avatar-speaking');
+    av.style.boxShadow = '0 0 0 0 rgba(99,102,241,0)';
+    if (r1) { r1.style.opacity='0'; r1.style.animation='none'; }
+    if (r2) { r2.style.opacity='0'; r2.style.animation='none'; }
+    startBubbles(false);
+  }
+}
+
 function unlockAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1939,6 +2021,7 @@ function startVoiceCall() {
         document.getElementById('call-timer').textContent = m+':'+s;
       }, 1000);
 
+      startBubbles(false); // idle bubbles
       // 4. AI langsung sapa
       setTimeout(() => {
         setCallStatus('AI berbicara...');
@@ -1971,13 +2054,13 @@ async function speakAI(text, onEnd) {
   if (!callActive) return;
   callAISpeaking = true; skipRequested = false;
   setWaveActive(true);
-  document.getElementById('call-ring').classList.add('call-ring-active');
+  setAvatarSpeaking(true);
   const clean = text.replace(/```[\s\S]*?```/g,'').replace(/[*_`#]/g,'').replace(/\[.*?\]/g,'').trim();
   document.getElementById('transcript-text').textContent = clean;
 
   const doneAI = () => {
     callAISpeaking = false; setWaveActive(false);
-    document.getElementById('call-ring').classList.remove('call-ring-active');
+    setAvatarSpeaking(false);
     if (callActive && !skipRequested && onEnd) onEnd();
     skipRequested = false;
   };
@@ -2282,6 +2365,7 @@ function skipTurn() {
 }
 
 function endVoiceCall() {
+  stopBubbles();
   callActive = false;
   stopCurrentAudio();
   if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
