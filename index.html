@@ -930,13 +930,15 @@ textarea#msg-input::placeholder{color:var(--t-text-s)}
 // ─── STATE ───
 const API_BASE = 'https://api.deline.web.id/ai/openai';
 
-const IDENTITY = `IDENTITAS LO: Lo adalah MRS Nova v2.0, AI yang dibuat dan dikembangkan oleh Sya (developer Indonesia). Kalo ada yang nanya "siapa lo", "lo buatan siapa", "lo AI apa", "model apa lo" — jawab: lo adalah MRS Nova v2.0, buatan Sya, developer Indonesia. JANGAN sebut OpenAI, Anthropic, Google, atau perusahaan lain. Lo bukan ChatGPT, bukan Gemini, bukan Claude. Lo adalah MRS Nova, titik.`;
+const IDENTITY = `IDENTITAS LO: Lo adalah MRS Nova v2.0, AI yang dibuat dan dikembangkan oleh Sya (developer Indonesia). Kalo ada yang nanya "siapa lo", "lo buatan siapa", "lo AI apa", "model apa lo" — jawab: lo adalah MRS Nova v2.0, buatan Sya, developer Indonesia. JANGAN sebut OpenAI, Anthropic, Google, atau perusahaan lain. Lo bukan ChatGPT, bukan Gemini, bukan Claude. Lo adalah MRS Nova, titik.
+
+PENTING SOAL CODE: Kalau user minta buatin website, landing page, app, game, atau apapun dalam HTML/CSS/JS — kirim code yang LENGKAP dan SEMPURNA, jangan dipotong, jangan diringkas, jangan pakai placeholder. Code harus langsung bisa jalan. Selalu wrap code dalam triple backtick dengan label bahasa yang tepat misalnya html, css, js, python.`;
 
 const CHARS = [
   { id:'syaaa', name:'Syaaa', emoji:'😎', desc:'Santai, gaul, gen z', prompt:`${IDENTITY}\n\nVibe lo: gen z, santai, jujur, kadang nyindir tapi bukan jahat, suka nimbrung kayak temen tongkrongan. Bahasa lo campuran indo-inggris natural, pake singkatan kayak "bro", "anjir", "gila", "literally", "ngl", "fr fr", "w/lo" dll. PENTING: jawaban lo SINGKAT dan TO THE POINT. Kalo pertanyaannya simpel, jawab 1-3 kalimat aja. Jangan lebay. Panjang cuma kalo emang beneran dibutuhin (explain teknikal, nulis sesuatu, dll). Jangan pake bullet point mulu, ngobrol natural aja. Kalau ada kode tetep format pake triple backtick.` },
   { id:'sensei', name:'Sensei', emoji:'🧑‍🏫', desc:'Formal, detail, profesional', prompt:`${IDENTITY}\n\nGaya lo formal namun ramah. Selalu berikan penjelasan yang detail dan terstruktur. Gunakan poin-poin bila diperlukan. Selalu ingat konteks percakapan sebelumnya dan jawab secara lengkap dan akurat.` },
   { id:'bestie', name:'Bestie', emoji:'🤗', desc:'Hangat, suportif, pendengar', prompt:`${IDENTITY}\n\nVibe lo hangat dan sangat suportif, kayak sahabat karib. Selalu dengarkan dan pahami perasaan user. Beri semangat dan dukungan. Ingat konteks percakapan dan respon dengan personal dan empati.` },
-  { id:'hacker', name:'H4ck3r', emoji:'👾', desc:'Singkat, teknikal, no-nonsense', prompt:`${IDENTITY}\n\nLo teknikal, singkat, padat. Jawab langsung ke inti masalah tanpa basa-basi. Suka kode. Gunakan istilah teknis. Format kode dengan benar. Output harus efisien dan akurat.` },
+  { id:'hacker', name:'H4ck3r', emoji:'👾', desc:'Singkat, teknikal, no-nonsense', prompt:`${IDENTITY}\n\nLo teknikal, singkat, padat. Jawab langsung ke inti masalah tanpa basa-basi. Suka kode. Gunakan istilah teknis. Format kode dengan benar. Output harus efisien dan akurat. Kalau diminta buat HTML/CSS/JS, kirim code LENGKAP dan SEMPURNA tanpa dipotong.` },
   { id:'comedian', name:'Komedian', emoji:'🎭', desc:'Lucu, witty, menghibur', prompt:`${IDENTITY}\n\nLo selalu ceria dan bisa bikin ketawa. Jawab pertanyaan dengan humor yang cerdas tapi tetap informatif. Suka wordplay dan plesetan. Tapi tetap bisa bantu hal serius kalau diminta.` },
   { id:'custom', name:'Custom', emoji:'✏️', desc:'Buat karakter sendiri!', prompt:'' },
 ];
@@ -1367,7 +1369,21 @@ async function generateImage(prompt, signal) {
 }
 
 async function callDeline(fullMsg, sysPrompt, signal) {
-  const res = await fetch(`${API_BASE}?text=${encodeURIComponent(fullMsg)}&prompt=${encodeURIComponent(sysPrompt)}`, { signal });
+  // Coba POST dulu (support payload besar, code panjang)
+  try {
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: fullMsg, prompt: sysPrompt }),
+      signal
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status && data.result) return data.result;
+    }
+  } catch(e) { /* fallback ke GET */ }
+  // Fallback GET untuk kompatibilitas
+  const res = await fetch(`${API_BASE}?text=${encodeURIComponent(fullMsg.slice(0,3000))}&prompt=${encodeURIComponent(sysPrompt.slice(0,1000))}`, { signal });
   if (!res.ok) throw new Error('API err');
   const data = await res.json();
   if (data.status && data.result) return data.result;
@@ -1441,8 +1457,17 @@ function formatMsg(content) {
             ${previewBtn}
           </div>
         </div>
-        <pre class="code-pre"><code class="code-text" id="${id}">${esc(code)}</code></pre>
-        ${isHTML ? `<div id="prev-${id}" class="html-preview-box" style="display:none"><div class="html-preview-toolbar"><span style="font-size:.72rem;color:var(--t-text-s);font-weight:600">Live Preview</span><button onclick="closePreview('${id}')" style="background:none;border:none;color:var(--t-text-s);cursor:pointer;font-size:.8rem">Tutup</button></div><iframe id="frame-${id}" sandbox="allow-scripts allow-same-origin allow-forms allow-modals" style="width:100%;border:none;min-height:320px;background:#fff;border-radius:0 0 10px 10px"></iframe></div>` : ''}
+        <pre class="code-pre"><code class="code-text" id="${id}" data-raw="${esc(code)}">${esc(code)}</code></pre>
+        ${isHTML ? `<div id="prev-${id}" class="html-preview-box" style="display:none">
+          <div class="html-preview-toolbar">
+            <span style="font-size:.72rem;color:var(--t-text-s);font-weight:600">Live Preview</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button onclick="openFullPreview('${id}')" style="background:none;border:1px solid var(--t-border);color:var(--t-text-s);cursor:pointer;font-size:.72rem;padding:2px 8px;border-radius:6px">Fullscreen</button>
+              <button onclick="closePreview('${id}')" style="background:none;border:none;color:var(--t-text-s);cursor:pointer;font-size:.8rem">Tutup</button>
+            </div>
+          </div>
+          <iframe id="frame-${id}" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups" style="width:100%;border:none;min-height:400px;background:#fff;border-radius:0 0 10px 10px" loading="lazy"></iframe>
+        </div>` : ''}
       </div>`;
     } else {
       let p = part
@@ -1511,27 +1536,44 @@ function buildMsgEl(msg) {
 
 // ─── CODE ACTIONS ───
 function previewHTML(id) {
-  const code = document.getElementById(id)?.textContent || '';
+  const codeEl  = document.getElementById(id);
   const prevBox = document.getElementById('prev-' + id);
   const frame   = document.getElementById('frame-' + id);
-  if (!prevBox || !frame) return;
+  if (!prevBox || !frame || !codeEl) return;
 
   if (prevBox.style.display === 'none' || !prevBox.style.display) {
     prevBox.style.display = 'block';
-    // Tulis HTML ke iframe secara langsung
-    const doc = frame.contentDocument || frame.contentWindow.document;
-    doc.open();
-    doc.write(code);
-    doc.close();
-    // Auto-resize iframe ke konten
-    setTimeout(() => {
+    // Ambil raw HTML dari data-raw (unescaped)
+    const raw = codeEl.getAttribute('data-raw') || codeEl.textContent || '';
+    // Decode HTML entities
+    const decoded = raw
+      .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+    // Inject via srcdoc — paling aman & support semua browser
+    frame.srcdoc = decoded;
+    // Auto resize setelah load
+    frame.onload = () => {
       try {
-        const h = frame.contentDocument.body.scrollHeight;
-        if (h > 50) frame.style.minHeight = Math.min(h + 20, 600) + 'px';
-      } catch(e) {}
-    }, 300);
+        const h = frame.contentDocument.documentElement.scrollHeight;
+        frame.style.minHeight = Math.min(Math.max(h + 20, 400), 700) + 'px';
+      } catch(e) { frame.style.minHeight = '400px'; }
+    };
+    prevBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else {
     prevBox.style.display = 'none';
+  }
+}
+
+function openFullPreview(id) {
+  const codeEl = document.getElementById(id);
+  if (!codeEl) return;
+  const raw = codeEl.getAttribute('data-raw') || codeEl.textContent || '';
+  const decoded = raw
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.open();
+    win.document.write(decoded);
+    win.document.close();
   }
 }
 
